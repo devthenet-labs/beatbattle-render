@@ -22,6 +22,7 @@ func newHandler(revision string) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "revision": revision})
 	}))
 	mux.HandleFunc("/render/wav", allow(http.MethodPost, handleWAV))
+	mux.HandleFunc("/render/analyze", allow(http.MethodPost, handleAnalyze))
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 	})
@@ -62,6 +63,32 @@ func handleWAV(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Disposition", `inline; filename="beat.wav"`)
 	h.Set("Content-Length", strconv.Itoa(len(wav)))
 	_, _ = w.Write(wav)
+}
+
+// analyzeResponse is the POST /render/analyze response.
+type analyzeResponse struct {
+	DurationMs int64   `json:"durationMs"`
+	Onsets     []int64 `json:"onsets"`
+	Steps      []int64 `json:"steps"`
+}
+
+func handleAnalyze(w http.ResponseWriter, r *http.Request) {
+	p, err := decodePattern(http.MaxBytesReader(w, r.Body, maxBody))
+	if err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	a, err := synth.Analyze(p)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, analyzeResponse{DurationMs: a.DurationMs, Onsets: a.OnsetsMs, Steps: a.StepsMs})
 }
 
 // decodePattern reads exactly one pattern object, rejecting unknown fields

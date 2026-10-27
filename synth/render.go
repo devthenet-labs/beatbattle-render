@@ -86,6 +86,41 @@ func Render(p Pattern) ([]int16, error) {
 	return out, nil
 }
 
+// Analysis is a render's duration, detected onsets and each step's start
+// time, all in whole milliseconds rounded to the nearest.
+type Analysis struct {
+	DurationMs int64
+	OnsetsMs   []int64
+	StepsMs    []int64
+}
+
+// Analyze renders p and reports timing: DurationMs is the rendered
+// length, OnsetsMs are Onsets' detected times, and StepsMs[i] is the
+// start of step i on the swung grid (see stepStart). It renders once.
+func Analyze(p Pattern) (Analysis, error) {
+	samples, err := Render(p)
+	if err != nil {
+		return Analysis{}, err
+	}
+	a := Analysis{
+		DurationMs: millis(len(samples)),
+		OnsetsMs:   make([]int64, 0),
+		StepsMs:    make([]int64, Steps),
+	}
+	for _, d := range Onsets(samples, SampleRate) {
+		a.OnsetsMs = append(a.OnsetsMs, int64(math.Round(d.Seconds()*1000)))
+	}
+	for i := 0; i < Steps; i++ {
+		a.StepsMs[i] = millis(stepStart(i, p.BPM, p.Swing))
+	}
+	return a, nil
+}
+
+// millis rounds a sample count at SampleRate to the nearest millisecond.
+func millis(samples int) int64 {
+	return int64(math.Round(float64(samples) * 1000 / SampleRate))
+}
+
 func clip(v float64) int16 {
 	s := math.Round(v * math.MaxInt16)
 	if s > math.MaxInt16 {
