@@ -35,6 +35,11 @@ func TestHandler(t *testing.T) {
 		{"wav trailing data", http.MethodPost, "/render/wav", kickPattern + `{}`, 400, "application/json", `"error"`},
 		{"wav ignores server fields", http.MethodPost, "/render/wav", strings.Replace(kickPattern, `"swing":0`, `"id":"p_1","votes":3,"createdAt":"2026-10-26T21:00:00Z"`, 1), 200, "audio/wav", "RIFF"},
 		{"wav too large", http.MethodPost, "/render/wav", `{"name":"` + strings.Repeat("a", 20<<10) + `"}`, 413, "application/json", `"error"`},
+		{"analyze wrong method", http.MethodGet, "/render/analyze", "", 405, "application/json", `"error"`},
+		{"analyze ok", http.MethodPost, "/render/analyze", kickPattern, 200, "application/json", `"durationMs"`},
+		{"analyze not json", http.MethodPost, "/render/analyze", "nope", 400, "application/json", `"error"`},
+		{"analyze bpm out of range", http.MethodPost, "/render/analyze", strings.Replace(kickPattern, `"bpm":120`, `"bpm":300`, 1), 400, "application/json", `"error"`},
+		{"analyze too large", http.MethodPost, "/render/analyze", `{"name":"` + strings.Repeat("a", 20<<10) + `"}`, 413, "application/json", `"error"`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -76,5 +81,56 @@ func TestWAVResponse(t *testing.T) {
 	}
 	if n := rec.Body.Len(); n != 176444 {
 		t.Errorf("body = %d bytes, want 176444", n)
+	}
+}
+
+func TestAnalyzeResponse(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newHandler("x").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/render/analyze", strings.NewReader(kickPattern)))
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	var got analyzeResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if got.DurationMs != 2000 {
+		t.Errorf("DurationMs = %d, want 2000", got.DurationMs)
+	}
+	wantOnsets := []int64{0, 500, 1000, 1500}
+	if len(got.Onsets) != len(wantOnsets) {
+		t.Fatalf("Onsets = %v, want %d entries", got.Onsets, len(wantOnsets))
+	}
+	for i, want := range wantOnsets {
+		if d := got.Onsets[i] - want; d < -5 || d > 5 {
+			t.Errorf("Onsets[%d] = %d, want within 5ms of %d", i, got.Onsets[i], want)
+		}
+	}
+	if len(got.Steps) != 16 {
+		t.Fatalf("Steps = %v, want 16 entries", got.Steps)
+	}
+	for i, want := range got.Steps {
+		wantStep := int64(i) * 125
+		if d := want - wantStep; d < -5 || d > 5 {
+			t.Errorf("Steps[%d] = %d, want within 5ms of %d", i, want, wantStep)
+		}
+	}
+}
+
+func TestAnalyzeInvalidMatchesWAV(t *testing.T) {
+	invalid := strings.Replace(kickPattern, `"bpm":120`, `"bpm":300`, 1)
+	handler := newHandler("x")
+
+	wavRec := httptest.NewRecorder()
+	handler.ServeHTTP(wavRec, httptest.NewRequest(http.MethodPost, "/render/wav", strings.NewReader(invalid)))
+
+	analyzeRec := httptest.NewRecorder()
+	handler.ServeHTTP(analyzeRec, httptest.NewRequest(http.MethodPost, "/render/analyze", strings.NewReader(invalid)))
+
+	if wavRec.Code != 400 || analyzeRec.Code != 400 {
+		t.Fatalf("status = %d/%d, want 400/400", wavRec.Code, analyzeRec.Code)
+	}
+	if wavRec.Body.String() != analyzeRec.Body.String() {
+		t.Errorf("bodies differ:\nwav:     %s\nanalyze: %s", wavRec.Body.String(), analyzeRec.Body.String())
 	}
 }

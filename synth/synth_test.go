@@ -253,6 +253,46 @@ func TestSwingZeroMatchesStraightGrid(t *testing.T) {
 	}
 }
 
+func TestAnalyze(t *testing.T) {
+	for _, swing := range []int{0, 25, 60} {
+		p := pattern(120, steps(), steps(), steps())
+		p.Swing = swing
+		a, err := Analyze(p)
+		if err != nil {
+			t.Fatalf("swing %d: %v", swing, err)
+		}
+		if a.DurationMs != 2000 {
+			t.Errorf("swing %d: DurationMs = %d, want 2000", swing, a.DurationMs)
+		}
+		if len(a.StepsMs) != Steps {
+			t.Fatalf("swing %d: StepsMs = %v, want %d entries", swing, a.StepsMs, Steps)
+		}
+		if a.StepsMs[0] != 0 {
+			t.Errorf("swing %d: StepsMs[0] = %d, want 0", swing, a.StepsMs[0])
+		}
+		want := 125.0 + float64(swing)*1.25
+		if d := float64(a.StepsMs[1]) - want; d < -1 || d > 1 {
+			t.Errorf("swing %d: StepsMs[1] = %d, want within 1ms of %v", swing, a.StepsMs[1], want)
+		}
+	}
+	if _, err := Analyze(Pattern{}); err == nil {
+		t.Fatal("Analyze(zero pattern) succeeded")
+	}
+}
+
+func TestAnalyzeOnsetsNeverNil(t *testing.T) {
+	a, err := Analyze(pattern(120, steps(), steps(), steps()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.OnsetsMs == nil {
+		t.Fatal("OnsetsMs is nil, want empty slice")
+	}
+	if len(a.OnsetsMs) != 0 {
+		t.Fatalf("OnsetsMs = %v, want empty", a.OnsetsMs)
+	}
+}
+
 func TestRandomPatternsProperty(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 200; i++ {
