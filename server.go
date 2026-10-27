@@ -2,39 +2,99 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"html"
+	"errors"
+	"io"
 	"net/http"
+	"strconv"
+
+	"github.com/devthenet-labs/beatbattle-render/synth"
 )
 
-// page is the service's one page.
-const page = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%[1]s</title>
-</head>
-<body>
-<h1>%[1]s</h1>
-<p>Revision <code>%[2]s</code>.</p>
-</body>
-</html>
-`
+// maxBody bounds every request body.
+const maxBody = 16 << 10
 
-// newHandler serves the page at / and the readiness check at /healthz.
+// newHandler serves the render service under /render: readiness at
+// /render/healthz and the stateless POST /render/wav.
 func newHandler(revision string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	mux.HandleFunc("/render/healthz", allow(http.MethodGet, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "revision": revision})
-	})
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintf(w, page, html.EscapeString("beatbattle-render"), html.EscapeString(revision))
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "revision": revision})
+	}))
+	mux.HandleFunc("/render/wav", allow(http.MethodPost, handleWAV))
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		writeError(w, http.StatusNotFound, "not found")
 	})
 	return withSecurityHeaders(mux)
+}
+
+// allow restricts a handler to one method, answering the rest with a JSON 405.
+func allow(method string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != method {
+			w.Header().Set("Allow", method)
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		next(w, r)
+	}
+}
+
+func handleWAV(w http.ResponseWriter, r *http.Request) {
+	p, err := decodePattern(http.MaxBytesReader(w, r.Body, maxBody))
+	if err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	samples, err := synth.Render(p)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	wav := synth.EncodeWAV(samples)
+	h := w.Header()
+	h.Set("Content-Type", "audio/wav")
+	h.Set("Content-Disposition", `inline; filename="beat.wav"`)
+	h.Set("Content-Length", strconv.Itoa(len(wav)))
+	_, _ = w.Write(wav)
+}
+
+// decodePattern reads exactly one pattern object, rejecting unknown fields
+// and trailing data.
+func decodePattern(body io.Reader) (synth.Pattern, error) {
+	var p synth.Pattern
+	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&p); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			return p, err
+		}
+		return p, errors.New("invalid pattern: body is not a valid pattern JSON object: " + err.Error())
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			return p, err
+		}
+		return p, errors.New("invalid pattern: unexpected data after the JSON object")
+	}
+	return p, nil
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
 }
 
 // withSecurityHeaders sets the headers every response carries.
