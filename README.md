@@ -19,7 +19,8 @@ Errors are JSON `{"error":"<message>"}`: `400` for an invalid pattern, `405` for
 path, `413` for a body over 16 KiB.
 
 The pattern is the shared JSON (see the spec): `name` (1-40 characters, no control characters), `author` (1-24 of
-`[A-Za-z0-9_-]`), integer `bpm` 60-200, integer `swing` 0-60 (accepted, ignored in v0) and `tracks` with exactly
+`[A-Za-z0-9_-]`), integer `bpm` 60-200, integer `swing` 0-60 (delays every off-beat, the 2nd, 4th, 6th... sixteenth
+note, by that percent of a step towards the next one) and `tracks` with exactly
 `kick`, `snare` and `hat`, 16 booleans each. Unknown fields are rejected. `id`, `votes` and `createdAt` are accepted
 and ignored.
 
