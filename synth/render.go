@@ -39,19 +39,27 @@ func (l *lcg) next() float64 {
 	return float64(int32(*l)) / (1 << 31)
 }
 
-// stepStart returns the first sample of step i, rounded to the nearest sample
-// of the exact sixteenth-note grid (60/bpm/4 seconds per step).
-func stepStart(i, bpm int) int {
+// stepStart returns the first sample of step i on the swung sixteenth-note
+// grid, rounded to the nearest sample. Even steps sit on the straight grid
+// (60/bpm/4 seconds per step); each odd step (the off-beats) is pushed
+// later by swing percent of one step's duration, towards the next step.
+// swing is 0-100.
+func stepStart(i, bpm, swing int) int {
 	const perBeat = SampleRate * 15 // samples*bpm per sixteenth
-	return (i*perBeat + bpm/2) / bpm
+	start := (i*perBeat + bpm/2) / bpm
+	if i%2 == 1 {
+		start += (swing*perBeat + 50*bpm) / (100 * bpm)
+	}
+	return start
 }
 
 // Length returns the sample count Render produces for a tempo.
-func Length(bpm int) int { return stepStart(Steps, bpm) }
+func Length(bpm int) int { return stepStart(Steps, bpm, 0) }
 
 // Render validates p and renders it. The result has Length(p.BPM) samples;
-// voices still ringing at the end of the last step are cut. Swing is
-// accepted and ignored.
+// voices still ringing at the end of the last step are cut. Off-beat
+// (odd-index) steps are delayed by p.Swing percent of a step; see
+// stepStart.
 func Render(p Pattern) ([]int16, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
@@ -60,7 +68,7 @@ func Render(p Pattern) ([]int16, error) {
 	mix := make([]float64, n)
 	noise := lcg(lcgSeed)
 	for i := 0; i < Steps; i++ {
-		start := stepStart(i, p.BPM)
+		start := stepStart(i, p.BPM, p.Swing)
 		if p.Tracks.Kick[i] {
 			addKick(mix, start)
 		}

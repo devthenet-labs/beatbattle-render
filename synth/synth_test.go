@@ -197,6 +197,62 @@ func randomSteps(r *rand.Rand) []bool {
 	return s
 }
 
+func TestSwingDelaysOffBeatSteps(t *testing.T) {
+	for _, swing := range []int{0, 25, 60} {
+		p := pattern(120, steps(1, 3), steps(), steps())
+		p.Swing = swing
+		samples, err := Render(p)
+		if err != nil {
+			t.Fatalf("swing %d: %v", swing, err)
+		}
+		got := Onsets(samples, SampleRate)
+		if len(got) != 2 {
+			t.Fatalf("swing %d: onsets = %v, want 2", swing, got)
+		}
+		for i, step := range []int{1, 3} {
+			want := time.Duration(step)*125*time.Millisecond + time.Duration(swing)*125*time.Millisecond/100
+			if d := got[i] - want; d < -5*time.Millisecond || d > 5*time.Millisecond {
+				t.Errorf("swing %d: onset %d = %v, want %v ±5ms", swing, i, got[i], want)
+			}
+		}
+	}
+}
+
+func TestSwingNeverChangesLength(t *testing.T) {
+	all := steps(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	for _, bpm := range []int{60, 120, 200} {
+		for _, swing := range []int{0, 30, 60} {
+			p := pattern(bpm, all, all, all)
+			p.Swing = swing
+			samples, err := Render(p)
+			if err != nil {
+				t.Fatalf("bpm %d swing %d: %v", bpm, swing, err)
+			}
+			if len(samples) != Length(bpm) {
+				t.Errorf("bpm %d swing %d: len = %d, want %d", bpm, swing, len(samples), Length(bpm))
+			}
+		}
+	}
+}
+
+func TestSwingZeroMatchesStraightGrid(t *testing.T) {
+	all := steps(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+	a := pattern(120, all, all, all)
+	a.Swing = 0
+	b := pattern(120, all, all, all)
+	samplesA, err := Render(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	samplesB, err := Render(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(EncodeWAV(samplesA), EncodeWAV(samplesB)) {
+		t.Fatal("swing=0 differs from swing left at zero value")
+	}
+}
+
 func TestRandomPatternsProperty(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 200; i++ {
