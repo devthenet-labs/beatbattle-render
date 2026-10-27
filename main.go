@@ -1,7 +1,6 @@
-// beatbattle-render is a small HTTP service, the starting point maul init app
-// generated. It listens on one port, answers /healthz for readiness
-// checks and writes nothing to disk, so it runs with a read-only root
-// filesystem, as a maul preview runs it.
+// beatbattle-render renders 16-step drum patterns to WAV. It serves under
+// /render, answers /render/healthz for readiness checks and writes nothing
+// to disk, so it runs with a read-only root filesystem, as a maul preview runs it.
 package main
 
 import (
@@ -15,8 +14,8 @@ import (
 	"time"
 )
 
-// addr is the one port the runtime image exposes.
-const addr = ":8080"
+// defaultAddr is the port the runtime image exposes; ADDR overrides it.
+const defaultAddr = ":8080"
 
 // commitSHA is set at build time (-ldflags -X main.commitSHA=...).
 var commitSHA = "dev"
@@ -24,6 +23,10 @@ var commitSHA = "dev"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	addr := defaultAddr
+	if v := os.Getenv("ADDR"); v != "" {
+		addr = v
+	}
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           newHandler(commitSHA),

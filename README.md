@@ -1,8 +1,50 @@
 # beatbattle-render
 
-A small Go HTTP service, scaffolded by `maul init app` so that [maul](https://github.com/devthenet-labs/maul) can
-build intents in it and preview its pull requests. It listens on port 8080, answers `/healthz` once it is
-ready and writes nothing to disk.
+The render service of Beat Battle, a multiplayer 16-step drum-machine jam (contract:
+[SPEC.md](../SPEC.md)). It turns a pattern into a WAV file: a deterministic, dependency-free drum synth behind one
+stateless endpoint. Standard library only. It listens on `:8080` (override with `ADDR`) and writes nothing to disk.
+Scaffolded by `maul init app` so that [maul](https://github.com/devthenet-labs/maul) can build intents in it and
+preview its pull requests.
+
+## HTTP API
+
+Everything is served under `/render`; there is no path rewriting.
+
+| Request | Response |
+| --- | --- |
+| `GET /render/healthz` | `200 {"status":"ok","revision":"<sha>"}` |
+| `POST /render/wav` with a pattern JSON body | `200 audio/wav`, `Content-Disposition: inline; filename="beat.wav"` |
+
+Errors are JSON `{"error":"<message>"}`: `400` for an invalid pattern, `405` for a wrong method, `404` for an unknown
+path, `413` for a body over 16 KiB.
+
+The pattern is the shared JSON (see the spec): `name` (1-40 characters, no control characters), `author` (1-24 of
+`[A-Za-z0-9_-]`), integer `bpm` 60-200, integer `swing` 0-60 (accepted, ignored in v0) and `tracks` with exactly
+`kick`, `snare` and `hat`, 16 booleans each. Unknown fields are rejected. `id`, `votes` and `createdAt` are accepted
+and ignored.
+
+```sh
+curl -s -X POST localhost:8080/render/wav -o beat.wav -d '{"name":"Four","author":"me","bpm":120,"swing":0,
+ "tracks":{"kick":[true,false,false,false,true,false,false,false,true,false,false,false,true,false,false,false],
+ "snare":[false,false,false,false,true,false,false,false,false,false,false,false,true,false,false,false],
+ "hat":[true,false,true,false,true,false,true,false,true,false,true,false,true,false,true,false]}}'
+```
+
+The output is 44100 Hz, mono, signed 16-bit PCM. A step is a sixteenth note (`60 / bpm / 4` s) and a pattern is 16
+steps, so 120 BPM gives exactly 2.0 s: 88200 samples, a 176444-byte file (44-byte header). Voices still ringing at the
+end are cut, never wrapped.
+
+## Layout
+
+- `synth/`: the pure core, no `net/http`. `Pattern` and `Validate`, `Render` (kick, snare and hat voices; noise from a
+  seeded LCG, so output is bit-for-bit reproducible), `EncodeWAV` and `Onsets` (a windowed-RMS onset detector, used
+  by tests now and acceptance checks later). Gains leave headroom so a full pattern does not clip.
+- `server.go`, `main.go`: the thin HTTP adapter and process wiring.
+
+## How it fits
+
+`beatbattle-web` (`/`) serves the UI and `beatbattle-api` (`/api`) stores patterns. The browser composes the three
+same-origin: the UI posts the current grid to `/render/wav` and plays the result. The services do not call each other.
 
 ## Develop
 
@@ -12,7 +54,7 @@ Use Go 1.26.6.
 gofmt -l .
 go vet ./...
 go test -race ./...
-go run .
+ADDR=:8080 go run .
 ```
 
 The root `Dockerfile` builds the runtime image a preview runs: a static binary on distroless, uid 65532, no shell,
@@ -22,7 +64,7 @@ listening on 8080. A preview runs it with a read-only root filesystem and no wri
 docker build -t beatbattle-render:local .
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
   -p 127.0.0.1:8080:8080 beatbattle-render:local
-curl -s localhost:8080/healthz
+curl -s localhost:8080/render/healthz
 ```
 
 `.maul/Dockerfile` is a different image: the one maul's coding agent works in, which is maul's agent base plus the
