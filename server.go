@@ -58,10 +58,12 @@ func handleWAV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wav := synth.EncodeWAV(samples)
+	durationMs := synth.DurationMs(len(samples))
 	h := w.Header()
 	h.Set("Content-Type", "audio/wav")
 	h.Set("Content-Disposition", `inline; filename="beat.wav"`)
 	h.Set("Content-Length", strconv.Itoa(len(wav)))
+	h.Set("X-Duration-Ms", strconv.FormatInt(durationMs, 10))
 	_, _ = w.Write(wav)
 }
 

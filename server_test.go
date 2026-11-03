@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -114,6 +115,48 @@ func TestAnalyzeResponse(t *testing.T) {
 		if d := want - wantStep; d < -5 || d > 5 {
 			t.Errorf("Steps[%d] = %d, want within 5ms of %d", i, want, wantStep)
 		}
+	}
+}
+
+func TestWAVDurationHeader(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newHandler("x").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/render/wav", strings.NewReader(kickPattern)))
+	if got := rec.Header().Get("X-Duration-Ms"); got != "2000" {
+		t.Errorf("X-Duration-Ms = %q, want %q", got, "2000")
+	}
+}
+
+func TestWAVDurationMatchesAnalyze(t *testing.T) {
+	handler := newHandler("x")
+	bodies := []string{
+		kickPattern,
+		strings.Replace(kickPattern, `"bpm":120`, `"bpm":60`, 1),
+		strings.Replace(kickPattern, `"bpm":120`, `"bpm":137`, 1),
+		strings.Replace(kickPattern, `"bpm":120`, `"bpm":200`, 1),
+		strings.Replace(kickPattern, `"swing":0`, `"swing":40`, 1),
+	}
+	for _, body := range bodies {
+		t.Run(body, func(t *testing.T) {
+			wavRec := httptest.NewRecorder()
+			handler.ServeHTTP(wavRec, httptest.NewRequest(http.MethodPost, "/render/wav", strings.NewReader(body)))
+			if wavRec.Code != 200 {
+				t.Fatalf("wav status = %d: %s", wavRec.Code, wavRec.Body.String())
+			}
+
+			analyzeRec := httptest.NewRecorder()
+			handler.ServeHTTP(analyzeRec, httptest.NewRequest(http.MethodPost, "/render/analyze", strings.NewReader(body)))
+			if analyzeRec.Code != 200 {
+				t.Fatalf("analyze status = %d: %s", analyzeRec.Code, analyzeRec.Body.String())
+			}
+			var got analyzeResponse
+			if err := json.Unmarshal(analyzeRec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("analyze body is not JSON: %v", err)
+			}
+
+			if header := wavRec.Header().Get("X-Duration-Ms"); header != strconv.FormatInt(got.DurationMs, 10) {
+				t.Errorf("X-Duration-Ms = %q, want %q", header, strconv.FormatInt(got.DurationMs, 10))
+			}
+		})
 	}
 }
 

@@ -13,12 +13,13 @@ Everything is served under `/render`; there is no path rewriting.
 | Request | Response |
 | --- | --- |
 | `GET /render/healthz` | `200 {"status":"ok","revision":"<sha>"}` |
-| `POST /render/wav` with a pattern JSON body | `200 audio/wav`, `Content-Disposition: inline; filename="beat.wav"` |
+| `POST /render/wav` with a pattern JSON body | `200 audio/wav`, `Content-Disposition: inline; filename="beat.wav"`, `X-Duration-Ms: <int>` |
 | `POST /render/analyze` with a pattern JSON body | `200 {"durationMs":<int>,"onsets":[<int>...],"steps":[<int>...]}` |
 
 `onsets` are the detected onset times in milliseconds, in order; `steps` has exactly 16 entries, the start time in
 milliseconds of each step including swing. All times are whole milliseconds, rounded to the nearest. Errors are the
-same 400/405/413 JSON as `/render/wav`.
+same 400/405/413 JSON as `/render/wav`. `/render/wav`'s `X-Duration-Ms` header is the rendered audio's length in whole
+milliseconds, rounded the same way, and for the same pattern it equals `/render/analyze`'s `durationMs`.
 
 Errors are JSON `{"error":"<message>"}`: `400` for an invalid pattern, `405` for a wrong method, `404` for an unknown
 path, `413` for a body over 16 KiB.
