@@ -280,6 +280,23 @@ func TestAnalyze(t *testing.T) {
 	}
 }
 
+func TestDurationMs(t *testing.T) {
+	cases := []struct {
+		samples int
+		want    int64
+	}{
+		{0, 0},
+		{44100, 1000},
+		{22050, 500},
+		{22073, 501},
+	}
+	for _, tc := range cases {
+		if got := DurationMs(tc.samples); got != tc.want {
+			t.Errorf("DurationMs(%d) = %d, want %d", tc.samples, got, tc.want)
+		}
+	}
+}
+
 func TestAnalyzeOnsetsNeverNil(t *testing.T) {
 	a, err := Analyze(pattern(120, steps(), steps(), steps()))
 	if err != nil {

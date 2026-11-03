@@ -103,7 +103,7 @@ func Analyze(p Pattern) (Analysis, error) {
 		return Analysis{}, err
 	}
 	a := Analysis{
-		DurationMs: millis(len(samples)),
+		DurationMs: DurationMs(len(samples)),
 		OnsetsMs:   make([]int64, 0),
 		StepsMs:    make([]int64, Steps),
 	}
@@ -111,13 +111,13 @@ func Analyze(p Pattern) (Analysis, error) {
 		a.OnsetsMs = append(a.OnsetsMs, int64(math.Round(d.Seconds()*1000)))
 	}
 	for i := 0; i < Steps; i++ {
-		a.StepsMs[i] = millis(stepStart(i, p.BPM, p.Swing))
+		a.StepsMs[i] = DurationMs(stepStart(i, p.BPM, p.Swing))
 	}
 	return a, nil
 }
 
-// millis rounds a sample count at SampleRate to the nearest millisecond.
-func millis(samples int) int64 {
+// DurationMs rounds a sample count at SampleRate to the nearest millisecond.
+func DurationMs(samples int) int64 {
 	return int64(math.Round(float64(samples) * 1000 / SampleRate))
 }
 
