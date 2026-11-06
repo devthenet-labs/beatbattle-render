@@ -43,9 +43,10 @@ end are cut, never wrapped.
 
 ## Layout
 
-- `synth/`: the pure core, no `net/http`. `Pattern` and `Validate`, `Render` (kick, snare and hat voices; noise from a
-  seeded LCG, so output is bit-for-bit reproducible), `EncodeWAV` and `Onsets` (a windowed-RMS onset detector, used
-  by tests now and acceptance checks later). Gains leave headroom so a full pattern does not clip.
+- `synth/`: the pure core, no `net/http`. `Pattern` and `Validate`, `Parse` (decode one pattern from JSON bytes,
+  refusing unknown fields and input over 16384 bytes, then `Validate`), `Render` (kick, snare and hat voices; noise
+  from a seeded LCG, so output is bit-for-bit reproducible), `EncodeWAV` and `Onsets` (a windowed-RMS onset detector,
+  used by tests now and acceptance checks later). Gains leave headroom so a full pattern does not clip.
 - `server.go`, `main.go`: the thin HTTP adapter and process wiring.
 
 ## How it fits
