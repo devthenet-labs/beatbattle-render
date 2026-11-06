@@ -70,7 +70,9 @@ func (p Pattern) Validate() error {
 }
 
 func validateName(name string) error {
-	name = strings.TrimSpace(name)
+	if strings.TrimSpace(name) != name {
+		return invalid("name must not have leading or trailing whitespace")
+	}
 	n := utf8.RuneCountInString(name)
 	if n < 1 || n > 40 {
 		return invalid("name must be 1 to 40 characters")

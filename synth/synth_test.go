@@ -3,6 +3,7 @@ package synth
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"math/rand"
 	"strings"
 	"testing"
@@ -33,6 +34,9 @@ func TestValidate(t *testing.T) {
 		{"name 40 runes", func(p *Pattern) { p.Name = strings.Repeat("é", 40) }, true},
 		{"name 41 runes", func(p *Pattern) { p.Name = strings.Repeat("é", 41) }, false},
 		{"name control char", func(p *Pattern) { p.Name = "a\tb" }, false},
+		{"name leading space", func(p *Pattern) { p.Name = " Groove" }, false},
+		{"name trailing space", func(p *Pattern) { p.Name = "Groove " }, false},
+		{"name internal space", func(p *Pattern) { p.Name = "Four on the floor" }, true},
 		{"author empty", func(p *Pattern) { p.Author = "" }, false},
 		{"author 24", func(p *Pattern) { p.Author = strings.Repeat("a", 24) }, true},
 		{"author 25", func(p *Pattern) { p.Author = strings.Repeat("a", 25) }, false},
@@ -59,6 +63,18 @@ func TestValidate(t *testing.T) {
 				t.Fatalf("Validate() = %v, want ok=%v", err, tc.ok)
 			}
 		})
+	}
+}
+
+func TestValidateNameWhitespaceIsErrInvalid(t *testing.T) {
+	p := pattern(120, steps(), steps(), steps())
+	p.Name = " Groove"
+	err := p.Validate()
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Validate() = %v, want errors.Is(err, ErrInvalid)", err)
+	}
+	if _, err := Render(p); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Render() = %v, want errors.Is(err, ErrInvalid)", err)
 	}
 }
 
