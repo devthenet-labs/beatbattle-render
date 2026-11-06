@@ -42,13 +42,13 @@ func (l *lcg) next() float64 {
 // stepStart returns the first sample of step i on the swung sixteenth-note
 // grid, rounded to the nearest sample. Even steps sit on the straight grid
 // (60/bpm/4 seconds per step); each odd step (the off-beats) is pushed
-// later by swing percent of one step's duration, towards the next step.
+// later by swing percent of half a step's duration, towards the next step.
 // swing is 0-100.
 func stepStart(i, bpm, swing int) int {
 	const perBeat = SampleRate * 15 // samples*bpm per sixteenth
 	start := (i*perBeat + bpm/2) / bpm
 	if i%2 == 1 {
-		start += (swing*perBeat + 50*bpm) / (100 * bpm)
+		start += (swing*perBeat + 100*bpm) / (200 * bpm)
 	}
 	return start
 }
@@ -58,7 +58,7 @@ func Length(bpm int) int { return stepStart(Steps, bpm, 0) }
 
 // Render validates p and renders it. The result has Length(p.BPM) samples;
 // voices still ringing at the end of the last step are cut. Off-beat
-// (odd-index) steps are delayed by p.Swing percent of a step; see
+// (odd-index) steps are delayed by p.Swing percent of half a step; see
 // stepStart.
 func Render(p Pattern) ([]int16, error) {
 	if err := p.Validate(); err != nil {
