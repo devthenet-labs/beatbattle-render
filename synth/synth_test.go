@@ -210,11 +210,36 @@ func TestSwingDelaysOffBeatSteps(t *testing.T) {
 			t.Fatalf("swing %d: onsets = %v, want 2", swing, got)
 		}
 		for i, step := range []int{1, 3} {
-			want := time.Duration(step)*125*time.Millisecond + time.Duration(swing)*125*time.Millisecond/100
+			want := time.Duration(step)*125*time.Millisecond + time.Duration(swing)*125*time.Millisecond/200
 			if d := got[i] - want; d < -5*time.Millisecond || d > 5*time.Millisecond {
 				t.Errorf("swing %d: onset %d = %v, want %v ±5ms", swing, i, got[i], want)
 			}
 		}
+	}
+}
+
+func TestSwingHalfStepExample(t *testing.T) {
+	p := pattern(120, steps(1), steps(), steps())
+	p.Swing = 40
+	samples, err := Render(p)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	got := Onsets(samples, SampleRate)
+	if len(got) != 1 {
+		t.Fatalf("onsets = %v, want 1", got)
+	}
+	want := 150 * time.Millisecond
+	if d := got[0] - want; d < -5*time.Millisecond || d > 5*time.Millisecond {
+		t.Errorf("onset = %v, want %v ±5ms", got[0], want)
+	}
+
+	a, err := Analyze(p)
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+	if a.StepsMs[1] != 150 {
+		t.Errorf("StepsMs[1] = %d, want 150", a.StepsMs[1])
 	}
 }
 
@@ -270,7 +295,7 @@ func TestAnalyze(t *testing.T) {
 		if a.StepsMs[0] != 0 {
 			t.Errorf("swing %d: StepsMs[0] = %d, want 0", swing, a.StepsMs[0])
 		}
-		want := 125.0 + float64(swing)*1.25
+		want := 125.0 + float64(swing)*0.625
 		if d := float64(a.StepsMs[1]) - want; d < -1 || d > 1 {
 			t.Errorf("swing %d: StepsMs[1] = %d, want within 1ms of %v", swing, a.StepsMs[1], want)
 		}
