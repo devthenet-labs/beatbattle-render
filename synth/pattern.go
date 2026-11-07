@@ -58,6 +58,7 @@ func (p Pattern) Validate() error {
 	if p.Swing < 0 || p.Swing > 60 {
 		return invalid("swing must be an integer from 0 to 60")
 	}
+	hasHit := false
 	for _, t := range []struct {
 		name  string
 		steps []bool
@@ -65,6 +66,14 @@ func (p Pattern) Validate() error {
 		if len(t.steps) != Steps {
 			return invalid("track %q must have exactly %d steps", t.name, Steps)
 		}
+		for _, on := range t.steps {
+			if on {
+				hasHit = true
+			}
+		}
+	}
+	if !hasHit {
+		return invalid("pattern must have at least one step on")
 	}
 	return nil
 }
