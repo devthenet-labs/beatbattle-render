@@ -33,6 +33,7 @@ func TestHandler(t *testing.T) {
 		{"wav unknown track", http.MethodPost, "/render/wav", strings.Replace(kickPattern, `"hat"`, `"cowbell"`, 1), 400, "application/json", `"error"`},
 		{"wav fractional bpm", http.MethodPost, "/render/wav", strings.Replace(kickPattern, `"bpm":120`, `"bpm":120.5`, 1), 400, "application/json", `"error"`},
 		{"wav bpm out of range", http.MethodPost, "/render/wav", strings.Replace(kickPattern, `"bpm":120`, `"bpm":300`, 1), 400, "application/json", `"error"`},
+		{"wav all steps off", http.MethodPost, "/render/wav", strings.NewReplacer(`"kick":[true,false,false,false,true,false,false,false,true,false,false,false,true,false,false,false]`, `"kick":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false]`).Replace(kickPattern), 400, "application/json", `"error"`},
 		{"wav trailing data", http.MethodPost, "/render/wav", kickPattern + `{}`, 400, "application/json", `"error"`},
 		{"wav ignores server fields", http.MethodPost, "/render/wav", strings.Replace(kickPattern, `"swing":0`, `"id":"p_1","votes":3,"createdAt":"2026-10-26T21:00:00Z"`, 1), 200, "audio/wav", "RIFF"},
 		{"wav too large", http.MethodPost, "/render/wav", `{"name":"` + strings.Repeat("a", 20<<10) + `"}`, 413, "application/json", `"error"`},

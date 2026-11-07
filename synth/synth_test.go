@@ -3,7 +3,9 @@ package synth
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"math/rand"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +24,7 @@ func pattern(bpm int, kick, snare, hat []bool) Pattern {
 }
 
 func TestValidate(t *testing.T) {
-	good := pattern(120, steps(), steps(), steps())
+	good := pattern(120, steps(0), steps(), steps())
 	cases := []struct {
 		name   string
 		mutate func(*Pattern)
@@ -49,6 +51,7 @@ func TestValidate(t *testing.T) {
 		{"short kick", func(p *Pattern) { p.Tracks.Kick = make([]bool, 15) }, false},
 		{"long snare", func(p *Pattern) { p.Tracks.Snare = make([]bool, 17) }, false},
 		{"missing hat", func(p *Pattern) { p.Tracks.Hat = nil }, false},
+		{"all steps off", func(p *Pattern) { p.Tracks.Kick = steps(); p.Tracks.Snare = steps(); p.Tracks.Hat = steps() }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,18 +118,23 @@ func TestDeterministic(t *testing.T) {
 	}
 }
 
-func TestEmptyPatternIsSilent(t *testing.T) {
-	samples, err := Render(pattern(90, steps(), steps(), steps()))
-	if err != nil {
-		t.Fatal(err)
+func TestAllStepsOffIsRejected(t *testing.T) {
+	p := pattern(90, steps(), steps(), steps())
+	if err := p.Validate(); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Validate() = %v, want errors.Is(err, ErrInvalid)", err)
 	}
-	for i, s := range samples {
-		if s != 0 {
-			t.Fatalf("sample %d = %d, want silence", i, s)
-		}
+	if _, err := Render(p); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Render() = %v, want errors.Is(err, ErrInvalid)", err)
 	}
-	if got := Onsets(samples, SampleRate); len(got) != 0 {
-		t.Fatalf("onsets in silence: %v", got)
+}
+
+func TestSingleStepIsValidAndRenders(t *testing.T) {
+	p := pattern(120, steps(), steps(), steps(0)) // only hat step 0
+	if err := p.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want nil", err)
+	}
+	if _, err := Render(p); err != nil {
+		t.Fatalf("Render() = %v, want nil", err)
 	}
 }
 
@@ -255,7 +263,7 @@ func TestSwingZeroMatchesStraightGrid(t *testing.T) {
 
 func TestAnalyze(t *testing.T) {
 	for _, swing := range []int{0, 25, 60} {
-		p := pattern(120, steps(), steps(), steps())
+		p := pattern(120, steps(0), steps(), steps())
 		p.Swing = swing
 		a, err := Analyze(p)
 		if err != nil {
@@ -298,22 +306,23 @@ func TestDurationMs(t *testing.T) {
 }
 
 func TestAnalyzeOnsetsNeverNil(t *testing.T) {
-	a, err := Analyze(pattern(120, steps(), steps(), steps()))
+	a, err := Analyze(pattern(120, steps(), steps(), steps(0)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a.OnsetsMs == nil {
-		t.Fatal("OnsetsMs is nil, want empty slice")
-	}
-	if len(a.OnsetsMs) != 0 {
-		t.Fatalf("OnsetsMs = %v, want empty", a.OnsetsMs)
+		t.Fatal("OnsetsMs is nil, want a slice")
 	}
 }
 
 func TestRandomPatternsProperty(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 200; i++ {
-		p := pattern(60+r.Intn(141), randomSteps(r), randomSteps(r), randomSteps(r))
+		kick, snare, hat := randomSteps(r), randomSteps(r), randomSteps(r)
+		if !slices.Contains(kick, true) && !slices.Contains(snare, true) && !slices.Contains(hat, true) {
+			hat[0] = true
+		}
+		p := pattern(60+r.Intn(141), kick, snare, hat)
 		p.Swing = r.Intn(61)
 		samples, err := Render(p)
 		if err != nil {
