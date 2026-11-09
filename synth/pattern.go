@@ -91,5 +91,11 @@ func validateAuthor(author string) error {
 			return invalid("author may only contain letters, digits, _ and -")
 		}
 	}
+	if c := author[0]; c == '-' || c == '_' {
+		return invalid("author may not begin or end with - or _")
+	}
+	if c := author[len(author)-1]; c == '-' || c == '_' {
+		return invalid("author may not begin or end with - or _")
+	}
 	return nil
 }
