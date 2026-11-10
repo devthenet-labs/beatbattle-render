@@ -8,8 +8,8 @@ func Busy(p Pattern) int {
 	}
 	n := 0
 	for _, track := range [][]bool{p.Tracks.Kick, p.Tracks.Snare, p.Tracks.Hat} {
-		for i := 0; i < Steps-1; i++ {
-			if track[i] {
+		for _, on := range track {
+			if on {
 				n++
 			}
 		}

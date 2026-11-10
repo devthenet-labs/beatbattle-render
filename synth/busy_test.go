@@ -3,6 +3,7 @@ package synth
 import "testing"
 
 func TestBusy(t *testing.T) {
+	all := steps(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 	cases := []struct {
 		name string
 		p    Pattern
@@ -14,6 +15,7 @@ func TestBusy(t *testing.T) {
 			14,
 		},
 		{"no steps", pattern(120, steps(), steps(), steps()), 0},
+		{"every step", pattern(120, all, all, all), 48},
 		{
 			"invalid: short hat track",
 			func() Pattern {
