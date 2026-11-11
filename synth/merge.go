@@ -28,7 +28,7 @@ func orSteps(x, y []bool) []bool {
 	out := slices.Clone(x)
 	for i, hit := range y {
 		if hit {
-			out[i] = !out[i]
+			out[i] = true
 		}
 	}
 	return out

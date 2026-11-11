@@ -52,16 +52,16 @@ func TestMergeTracks(t *testing.T) {
 	}
 }
 
-// checkSteps reports any step of got that plays but is not listed in want
-// (1-based).
+// checkSteps reports any step whose state in got differs from want (the
+// 1-based steps that should play).
 func checkSteps(t *testing.T, track string, got []bool, want []int) {
 	t.Helper()
 	if len(got) != Steps {
 		t.Fatalf("%s: %d steps, want %d", track, len(got), Steps)
 	}
 	for i, on := range got {
-		if on && !slices.Contains(want, i+1) {
-			t.Errorf("%s: step %d plays, want only %v", track, i+1, want)
+		if on != slices.Contains(want, i+1) {
+			t.Errorf("%s: step %d is %v, want steps %v", track, i+1, on, want)
 		}
 	}
 }
