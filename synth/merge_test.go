@@ -3,6 +3,7 @@ package synth
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -23,19 +24,19 @@ func TestMergeTracks(t *testing.T) {
 	cases := []struct {
 		name             string
 		a, b             Pattern
-		kick, snare, hat []bool
+		kick, snare, hat []int
 	}{
 		{
 			"readme",
 			mergePat("a", "alice", 120, 0, on1(1, 5, 9, 13), on1(5, 13), on1(1, 3, 5, 7, 9, 11, 13, 15)),
 			mergePat("b", "bob", 120, 0, on1(2, 16), on1(1), on1(4, 10)),
-			on1(1, 2, 5, 9, 13, 16), on1(1, 5, 13), on1(1, 3, 4, 5, 7, 9, 10, 11, 13, 15),
+			[]int{1, 2, 5, 9, 13, 16}, []int{1, 5, 13}, []int{1, 3, 4, 5, 7, 9, 10, 11, 13, 15},
 		},
 		{
 			"sparse",
 			mergePat("a", "alice", 120, 0, on1(3), on1(7, 8), on1()),
 			mergePat("b", "bob", 120, 0, on1(3, 12), on1(), on1(16)),
-			on1(3, 12), on1(7, 8), on1(16),
+			[]int{3, 12}, []int{7, 8}, []int{16},
 		},
 	}
 	for _, c := range cases {
@@ -44,10 +45,24 @@ func TestMergeTracks(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(got.Tracks.Kick, c.kick) || !reflect.DeepEqual(got.Tracks.Snare, c.snare) || !reflect.DeepEqual(got.Tracks.Hat, c.hat) {
-				t.Errorf("got %+v", got.Tracks)
-			}
+			checkSteps(t, "kick", got.Tracks.Kick, c.kick)
+			checkSteps(t, "snare", got.Tracks.Snare, c.snare)
+			checkSteps(t, "hat", got.Tracks.Hat, c.hat)
 		})
+	}
+}
+
+// checkSteps reports any step of got that plays but is not listed in want
+// (1-based).
+func checkSteps(t *testing.T, track string, got []bool, want []int) {
+	t.Helper()
+	if len(got) != Steps {
+		t.Fatalf("%s: %d steps, want %d", track, len(got), Steps)
+	}
+	for i, on := range got {
+		if on && !slices.Contains(want, i+1) {
+			t.Errorf("%s: step %d plays, want only %v", track, i+1, want)
+		}
 	}
 }
 

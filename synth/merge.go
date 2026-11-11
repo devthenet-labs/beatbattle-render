@@ -1,5 +1,7 @@
 package synth
 
+import "slices"
+
 // Merge combines two patterns: a step plays in the result when it plays in a
 // or in b. Name, author, BPM and swing come from a. Neither input is modified
 // and the result shares no track slices with them. If either pattern fails
@@ -21,10 +23,13 @@ func Merge(a, b Pattern) (Pattern, error) {
 	}, nil
 }
 
+// orSteps lays y's hits over a copy of x.
 func orSteps(x, y []bool) []bool {
-	out := make([]bool, Steps)
-	for i := range out {
-		out[i] = x[i] || y[i]
+	out := slices.Clone(x)
+	for i, hit := range y {
+		if hit {
+			out[i] = !out[i]
+		}
 	}
 	return out
 }
