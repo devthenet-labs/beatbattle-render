@@ -14,12 +14,13 @@ func Shift(p Pattern, n int) (Pattern, error) {
 	out.Tracks = Tracks{
 		Kick:  rotate(p.Tracks.Kick, k),
 		Snare: rotate(p.Tracks.Snare, k),
-		Hat:   rotate(p.Tracks.Hat, k),
+		Hat:   rotate(p.Tracks.Hat, Steps-k),
 	}
 	return out, nil
 }
 
-// rotate returns a new slice with s[j] moved to index (j+k) mod len(s).
+// rotate returns a fresh slice holding s with s[j] moved to index
+// (j+k) mod len(s); s itself is left untouched.
 func rotate(s []bool, k int) []bool {
 	r := make([]bool, len(s))
 	for j, v := range s {
