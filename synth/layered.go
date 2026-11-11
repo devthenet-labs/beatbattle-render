@@ -7,15 +7,19 @@ func Layered(p Pattern) ([]int, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	out := []int{}
-	for i := 0; i < Steps; i++ {
-		n := 0
-		for _, on := range []bool{p.Tracks.Kick[i], p.Tracks.Snare[i], p.Tracks.Hat[i]} {
-			if on {
-				n++
-			}
+	// seen marks the steps an earlier track already plays; a later track
+	// hitting one of them makes that step layered.
+	var layered [Steps]bool
+	seen := p.Tracks.Kick
+	for _, track := range [][]bool{p.Tracks.Snare, p.Tracks.Hat} {
+		for i, on := range track {
+			layered[i] = layered[i] || on && seen[i]
+			seen[i] = seen[i] || on
 		}
-		if n >= 2 {
+	}
+	out := []int{}
+	for i, ok := range layered {
+		if ok {
 			out = append(out, i+1)
 		}
 	}
