@@ -1,7 +1,7 @@
 package synth
 
 import (
-	"bytes"
+	"encoding/json"
 	"slices"
 )
 
@@ -18,9 +18,9 @@ func Fill(p Pattern, track string, from, to int) (Pattern, error) {
 		return Pattern{}, invalid("span %d to %d must satisfy 1 <= from <= to <= %d", from, to, Steps)
 	}
 	out := p
-	out.ID = bytes.Clone(p.ID)
-	out.Votes = bytes.Clone(p.Votes)
-	out.CreatedAt = bytes.Clone(p.CreatedAt)
+	out.ID = cloneRaw(p.ID)
+	out.Votes = cloneRaw(p.Votes)
+	out.CreatedAt = cloneRaw(p.CreatedAt)
 	out.Tracks.Kick = slices.Clone(p.Tracks.Kick)
 	out.Tracks.Snare = slices.Clone(p.Tracks.Snare)
 	out.Tracks.Hat = slices.Clone(p.Tracks.Hat)
@@ -39,4 +39,9 @@ func Fill(p Pattern, track string, from, to int) (Pattern, error) {
 		(*target)[i] = true
 	}
 	return out, nil
+}
+
+// cloneRaw copies a raw JSON field so the result never shares its bytes.
+func cloneRaw(m json.RawMessage) json.RawMessage {
+	return append(json.RawMessage{}, m...)
 }
