@@ -118,3 +118,12 @@ func TestDistanceKeepValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDistanceSharedTracksInvalidB(t *testing.T) {
+	a := distReadme()
+	b := a
+	b.BPM = 201
+	if got, err := Distance(a, b); got != -1 || !errors.Is(err, ErrInvalid) {
+		t.Fatalf("got %d, %v", got, err)
+	}
+}

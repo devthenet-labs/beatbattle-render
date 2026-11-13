@@ -7,11 +7,6 @@ func Distance(a, b Pattern) (int, error) {
 	if err := a.Validate(); err != nil {
 		return -1, err
 	}
-	if sharesTracks(a.Tracks, b.Tracks) {
-		// b reads the very same steps as a (for example a copy of a with
-		// other metadata), so nothing can differ.
-		return 0, nil
-	}
 	if err := b.Validate(); err != nil {
 		return -1, err
 	}
@@ -29,12 +24,4 @@ func countDiff(x, y []bool) int {
 		}
 	}
 	return n
-}
-
-// sharesTracks reports whether x and y are backed by the same step arrays.
-func sharesTracks(x, y Tracks) bool {
-	same := func(p, q []bool) bool {
-		return len(p) == len(q) && len(p) > 0 && &p[0] == &q[0]
-	}
-	return same(x.Kick, y.Kick) && same(x.Snare, y.Snare) && same(x.Hat, y.Hat)
 }
