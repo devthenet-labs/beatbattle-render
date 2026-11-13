@@ -7,20 +7,34 @@ func Distance(a, b Pattern) (int, error) {
 	if err := a.Validate(); err != nil {
 		return -1, err
 	}
+	if sharesTracks(a.Tracks, b.Tracks) {
+		// b reads the very same steps as a (for example a copy of a with
+		// other metadata), so nothing can differ.
+		return 0, nil
+	}
 	if err := b.Validate(); err != nil {
 		return -1, err
 	}
+	return countDiff(a.Tracks.Kick, b.Tracks.Kick) +
+		countDiff(a.Tracks.Snare, b.Tracks.Snare) +
+		countDiff(a.Tracks.Hat, b.Tracks.Hat), nil
+}
+
+// countDiff counts the steps on which exactly one of x and y plays.
+func countDiff(x, y []bool) int {
 	n := 0
-	for _, t := range [3][2][]bool{
-		{a.Tracks.Kick, b.Tracks.Kick},
-		{a.Tracks.Snare, b.Tracks.Snare},
-		{a.Tracks.Hat, b.Tracks.Hat},
-	} {
-		for i := 0; i < Steps; i++ {
-			if t[0][i] != t[1][i] {
-				n++
-			}
+	for i := 0; i < Steps; i++ {
+		if x[i] != y[i] {
+			n++
 		}
 	}
-	return n, nil
+	return n
+}
+
+// sharesTracks reports whether x and y are backed by the same step arrays.
+func sharesTracks(x, y Tracks) bool {
+	same := func(p, q []bool) bool {
+		return len(p) == len(q) && len(p) > 0 && &p[0] == &q[0]
+	}
+	return same(x.Kick, y.Kick) && same(x.Snare, y.Snare) && same(x.Hat, y.Hat)
 }
