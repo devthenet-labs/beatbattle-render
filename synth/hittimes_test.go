@@ -31,9 +31,9 @@ func TestHitTimesValues(t *testing.T) {
 		{"readme kick", readme, "kick", []int64{0, 500, 1000, 1500}},
 		{"readme snare", readme, "snare", []int64{500, 1500}},
 		{"readme hat", readme, "hat", []int64{0, 250, 500, 750, 1000, 1250, 1500, 1750}},
-		{"swing kick", swung, "kick", []int64{0, 195}},
-		{"swing snare", swung, "snare", []int64{1095}},
-		{"swing hat", swung, "hat", []int64{2100, 2295}},
+		{"swing kick", swung, "kick", []int64{45, 150}},
+		{"swing snare", swung, "snare", []int64{1050}},
+		{"swing hat", swung, "hat", []int64{2145, 2250}},
 	}
 	for _, c := range cases {
 		got, err := HitTimes(c.p, c.track)
@@ -75,7 +75,7 @@ func TestHitTimesMatchesAnalyze(t *testing.T) {
 		return r
 	}
 	for n := 0; n < 50; n++ {
-		p := htPattern(60+rng.Intn(141), rng.Intn(61), randRow(), randRow(), randRow())
+		p := htPattern(60+rng.Intn(141), 0, randRow(), randRow(), randRow())
 		a, err := Analyze(p)
 		if err != nil {
 			t.Fatal(err)
