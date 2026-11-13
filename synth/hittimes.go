@@ -16,7 +16,7 @@ func HitTimes(p Pattern, track string) ([]int64, error) {
 	out := make([]int64, 0, Steps)
 	for i, on := range row {
 		if on {
-			out = append(out, hitMs(i, p.BPM, p.Swing))
+			out = append(out, DurationMs(stepStart(i, p.BPM, p.Swing)))
 		}
 	}
 	return out, nil
@@ -33,14 +33,4 @@ func trackRow(t Tracks, track string) ([]bool, error) {
 		return t.Hat, nil
 	}
 	return nil, invalid("unknown track %q", track)
-}
-
-// hitMs is the start of step i in ms: the straight sixteenth plus, on the
-// off-beats (steps 2, 4, 6, ... counting from 1), the swing delay.
-func hitMs(i, bpm, swing int) int64 {
-	ms := DurationMs(stepStart(i, bpm, 0))
-	if i%2 == 0 {
-		ms += DurationMs((swing*SampleRate*15 + 50*bpm) / (100 * bpm))
-	}
-	return ms
 }
