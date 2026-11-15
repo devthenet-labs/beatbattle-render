@@ -1,6 +1,9 @@
 package synth
 
-import "slices"
+import (
+	"encoding/json"
+	"slices"
+)
 
 // Clear returns a deep copy of p in which every step of the named track
 // ("kick", "snare" or "hat") is a rest. p is not modified and the copy shares
@@ -11,9 +14,13 @@ func Clear(p Pattern, track string) (Pattern, error) {
 		return Pattern{}, err
 	}
 	out := p
-	out.ID = slices.Clone(p.ID)
-	out.Votes = slices.Clone(p.Votes)
-	out.CreatedAt = slices.Clone(p.CreatedAt)
+	if p.ID != nil || p.Votes != nil || p.CreatedAt != nil {
+		// A stored pattern: copy the server-assigned fields so the result
+		// does not alias p's bytes.
+		out.ID = append(json.RawMessage{}, p.ID...)
+		out.Votes = append(json.RawMessage{}, p.Votes...)
+		out.CreatedAt = append(json.RawMessage{}, p.CreatedAt...)
+	}
 	out.Tracks = Tracks{
 		Kick:  slices.Clone(p.Tracks.Kick),
 		Snare: slices.Clone(p.Tracks.Snare),
