@@ -149,3 +149,15 @@ func TestClearErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestClearPartialStoredFields(t *testing.T) {
+	p := readme()
+	p.ID = json.RawMessage(`7`)
+	got, err := Clear(p, "kick")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Votes != nil || got.CreatedAt != nil || string(got.ID) != `7` {
+		t.Errorf("stored fields: %+v", got)
+	}
+}
