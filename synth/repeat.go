@@ -18,35 +18,35 @@ func Repeat(p Pattern, track string, length int) (Pattern, error) {
 	default:
 		return Pattern{}, invalid("track must be kick, snare or hat")
 	}
+	out := clonePattern(p)
+	if length == Steps {
+		// Repeating all the steps leaves the track as it is.
+		return out, nil
+	}
 	if err := p.Validate(); err != nil {
 		return Pattern{}, err
 	}
-	var src []bool
+	dst := out.Tracks.Hat
 	switch track {
 	case "kick":
-		src = p.Tracks.Kick
+		dst = out.Tracks.Kick
 	case "snare":
-		src = p.Tracks.Snare
-	default:
-		src = p.Tracks.Hat
+		dst = out.Tracks.Snare
 	}
-	rep := make([]bool, Steps)
-	for i := range rep {
-		rep[i] = src[i%length]
+	for i := range dst {
+		dst[i] = dst[i%length]
 	}
+	return out, nil
+}
+
+// clonePattern returns a copy of p whose track slices share no backing array
+// with p's.
+func clonePattern(p Pattern) Pattern {
 	out := p
 	out.Tracks = Tracks{
 		Kick:  slices.Clone(p.Tracks.Kick),
 		Snare: slices.Clone(p.Tracks.Snare),
 		Hat:   slices.Clone(p.Tracks.Hat),
 	}
-	switch track {
-	case "kick":
-		out.Tracks.Kick = rep
-	case "snare":
-		out.Tracks.Snare = rep
-	default:
-		out.Tracks.Hat = rep
-	}
-	return out, nil
+	return out
 }
