@@ -111,6 +111,13 @@ func TestRetimeStoredFields(t *testing.T) {
 		t.Fatalf("%s vs %s", pj, gj)
 	}
 
+	// a partly stored pattern keeps absent fields nil
+	p.Votes, p.CreatedAt = nil, nil
+	got, _ = Retime(p, 90, 25)
+	if got.Votes != nil || got.CreatedAt != nil {
+		t.Fatal("absent Votes/CreatedAt became non-nil")
+	}
+
 	// empty non-nil stays non-nil
 	p.ID = json.RawMessage{}
 	got, _ = Retime(p, 90, 25)
