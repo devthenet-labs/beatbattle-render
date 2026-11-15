@@ -117,6 +117,8 @@ func TestRepeatErrors(t *testing.T) {
 		{"kicks", readme(), "kicks", 4},
 		{"swing 61", badSwing, "kick", 4},
 		{"15 steps", short, "snare", 4},
+		{"swing 61 len 16", badSwing, "kick", 16},
+		{"15 steps len 16", short, "hat", 16},
 	}
 	for _, c := range cases {
 		out, err := Repeat(c.p, c.track, c.length)

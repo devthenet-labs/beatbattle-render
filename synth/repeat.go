@@ -18,13 +18,13 @@ func Repeat(p Pattern, track string, length int) (Pattern, error) {
 	default:
 		return Pattern{}, invalid("track must be kick, snare or hat")
 	}
+	if err := p.Validate(); err != nil {
+		return Pattern{}, err
+	}
 	out := clonePattern(p)
 	if length == Steps {
 		// Repeating all the steps leaves the track as it is.
 		return out, nil
-	}
-	if err := p.Validate(); err != nil {
-		return Pattern{}, err
 	}
 	dst := out.Tracks.Hat
 	switch track {
